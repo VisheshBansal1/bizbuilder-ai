@@ -20,6 +20,20 @@ interface WebsitePreviewProps {
 }
 
 export const WebsitePreview = ({ data }: WebsitePreviewProps) => {
+  // Validate and normalize data
+  const safeData = {
+    ...data,
+    services: Array.isArray(data.services) ? data.services : [],
+    testimonials: Array.isArray(data.testimonials) ? data.testimonials.map(t => ({
+      ...t,
+      rating: Math.min(5, Math.max(1, Number(t.rating) || 5))
+    })) : [],
+    images: {
+      hero: data.images?.hero || '',
+      gallery: Array.isArray(data.images?.gallery) ? data.images.gallery : []
+    }
+  };
+
   return (
     <Card className="overflow-hidden shadow-lg">
       <Tabs defaultValue="preview" className="w-full">
@@ -33,10 +47,10 @@ export const WebsitePreview = ({ data }: WebsitePreviewProps) => {
           <div className="bg-background p-8 max-h-[800px] overflow-y-auto">
             {/* Hero Section */}
             <section className="mb-12 relative rounded-xl overflow-hidden">
-              {data.images?.hero && (
+              {safeData.images.hero && (
                 <div className="absolute inset-0">
                   <img
-                    src={data.images.hero}
+                    src={safeData.images.hero}
                     alt="Hero"
                     className="w-full h-full object-cover"
                   />
@@ -45,10 +59,10 @@ export const WebsitePreview = ({ data }: WebsitePreviewProps) => {
               )}
               <div className="relative z-10 py-20 px-8">
                 <h1 className="text-4xl md:text-5xl font-bold mb-4 text-foreground">
-                  {data.hero_title}
+                  {safeData.hero_title}
                 </h1>
                 <p className="text-xl text-muted-foreground max-w-2xl">
-                  {data.hero_subtitle}
+                  {safeData.hero_subtitle}
                 </p>
                 <button className="mt-6 px-8 py-3 bg-primary text-primary-foreground rounded-lg font-semibold hover:opacity-90 transition-opacity">
                   Get Started
@@ -59,17 +73,17 @@ export const WebsitePreview = ({ data }: WebsitePreviewProps) => {
             {/* About Section */}
             <section className="mb-12">
               <h2 className="text-3xl font-bold mb-4">About Us</h2>
-              <p className="text-muted-foreground leading-relaxed">{data.about}</p>
+              <p className="text-muted-foreground leading-relaxed">{safeData.about}</p>
             </section>
 
             {/* Services Section */}
-            {data.services && data.services.length > 0 && (
+            {safeData.services.length > 0 && (
               <section className="mb-12">
                 <h2 className="text-3xl font-bold mb-6">Our Services</h2>
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {data.services.map((service, i) => (
+                  {safeData.services.map((service, i) => (
                     <Card key={i} className="p-6 hover:shadow-md transition-shadow">
-                      <div className="text-4xl mb-4">{service.icon}</div>
+                      <div className="text-4xl mb-4">{service.icon || '🔹'}</div>
                       <h3 className="text-xl font-semibold mb-2">{service.title}</h3>
                       <p className="text-muted-foreground">{service.description}</p>
                     </Card>
@@ -79,11 +93,11 @@ export const WebsitePreview = ({ data }: WebsitePreviewProps) => {
             )}
 
             {/* Gallery Section */}
-            {data.images?.gallery && data.images.gallery.length > 0 && (
+            {safeData.images.gallery.length > 0 && (
               <section className="mb-12">
                 <h2 className="text-3xl font-bold mb-6">Gallery</h2>
                 <div className="grid md:grid-cols-3 gap-4">
-                  {data.images.gallery.map((img, i) => (
+                  {safeData.images.gallery.map((img, i) => (
                     <img
                       key={i}
                       src={img}
@@ -96,21 +110,24 @@ export const WebsitePreview = ({ data }: WebsitePreviewProps) => {
             )}
 
             {/* Testimonials Section */}
-            {data.testimonials && data.testimonials.length > 0 && (
+            {safeData.testimonials.length > 0 && (
               <section className="mb-12">
                 <h2 className="text-3xl font-bold mb-6">What Clients Say</h2>
                 <div className="grid md:grid-cols-2 gap-6">
-                  {data.testimonials.map((testimonial, i) => (
-                    <Card key={i} className="p-6">
-                      <div className="flex mb-2">
-                        {[...Array(testimonial.rating)].map((_, j) => (
-                          <span key={j} className="text-accent">★</span>
-                        ))}
-                      </div>
-                      <p className="text-muted-foreground mb-4">"{testimonial.text}"</p>
-                      <p className="font-semibold">— {testimonial.name}</p>
-                    </Card>
-                  ))}
+                  {safeData.testimonials.map((testimonial, i) => {
+                    const rating = testimonial.rating;
+                    return (
+                      <Card key={i} className="p-6">
+                        <div className="flex mb-2">
+                          {Array.from({ length: rating }, (_, j) => (
+                            <span key={j} className="text-accent">★</span>
+                          ))}
+                        </div>
+                        <p className="text-muted-foreground mb-4">"{testimonial.text}"</p>
+                        <p className="font-semibold">— {testimonial.name}</p>
+                      </Card>
+                    );
+                  })}
                 </div>
               </section>
             )}
