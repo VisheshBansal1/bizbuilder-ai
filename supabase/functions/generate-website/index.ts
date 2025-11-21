@@ -19,7 +19,7 @@ serve(async (req) => {
       throw new Error("LOVABLE_API_KEY not configured");
     }
 
-    // Generate text content
+    // Generate text content using tool calling for structured output
     const contentResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -31,29 +31,79 @@ serve(async (req) => {
         messages: [
           {
             role: "system",
-            content: `You are a professional website content generator. Generate complete, realistic content for a business website based on the user's prompt. Return ONLY valid JSON with this exact structure:
-{
-  "business_name": "extracted or generated business name",
-  "hero_title": "compelling headline",
-  "hero_subtitle": "engaging subtitle (1-2 sentences)",
-  "about": "detailed about section (3-4 sentences)",
-  "services": [
-    {"title": "service name", "description": "service description", "icon": "appropriate emoji"}
-  ],
-  "testimonials": [
-    {"name": "Generic Name", "text": "testimonial text", "rating": 5}
-  ],
-  "contact": "contact information text",
-  "business_type": "industry category for image generation"
-}
-
-Generate 3-6 services and 3-4 testimonials. Make testimonials realistic but generic (use names like "Sarah M.", "John D."). Services should match the business type. All content must be professional and appropriate.`
+            content: "You are a professional website content generator. Generate complete, realistic content for a business website based on the user's prompt. Use the generate_website_content function to return the structured data."
           },
           {
             role: "user",
             content: prompt
           }
         ],
+        tools: [
+          {
+            type: "function",
+            function: {
+              name: "generate_website_content",
+              description: "Generate structured website content including business name, hero section, about, services, testimonials, and contact info",
+              parameters: {
+                type: "object",
+                properties: {
+                  business_name: {
+                    type: "string",
+                    description: "The name of the business"
+                  },
+                  hero_title: {
+                    type: "string",
+                    description: "Compelling headline for hero section"
+                  },
+                  hero_subtitle: {
+                    type: "string",
+                    description: "Engaging subtitle (1-2 sentences)"
+                  },
+                  about: {
+                    type: "string",
+                    description: "Detailed about section (3-4 sentences)"
+                  },
+                  services: {
+                    type: "array",
+                    description: "Array of 3-6 services",
+                    items: {
+                      type: "object",
+                      properties: {
+                        title: { type: "string" },
+                        description: { type: "string" },
+                        icon: { type: "string", description: "Appropriate emoji" }
+                      },
+                      required: ["title", "description", "icon"]
+                    }
+                  },
+                  testimonials: {
+                    type: "array",
+                    description: "Array of 3-4 testimonials with generic names",
+                    items: {
+                      type: "object",
+                      properties: {
+                        name: { type: "string", description: "Generic name like 'Sarah M.' or 'John D.'" },
+                        text: { type: "string" },
+                        rating: { type: "number", minimum: 1, maximum: 5 }
+                      },
+                      required: ["name", "text", "rating"]
+                    }
+                  },
+                  contact: {
+                    type: "string",
+                    description: "Contact information text"
+                  },
+                  business_type: {
+                    type: "string",
+                    description: "Industry category for image generation (e.g., bakery, yoga studio, photography)"
+                  }
+                },
+                required: ["business_name", "hero_title", "hero_subtitle", "about", "services", "testimonials", "contact", "business_type"]
+              }
+            }
+          }
+        ],
+        tool_choice: { type: "function", function: { name: "generate_website_content" } }
       }),
     });
 
@@ -64,7 +114,15 @@ Generate 3-6 services and 3-4 testimonials. Make testimonials realistic but gene
     }
 
     const contentData = await contentResponse.json();
-    const generatedContent = JSON.parse(contentData.choices[0].message.content);
+    console.log("Raw AI response:", JSON.stringify(contentData, null, 2));
+    
+    // Extract structured data from tool call
+    const toolCall = contentData.choices[0].message.tool_calls?.[0];
+    if (!toolCall) {
+      throw new Error("AI did not return structured data");
+    }
+    
+    const generatedContent = JSON.parse(toolCall.function.arguments);
     console.log("Generated content:", generatedContent);
 
     // Generate images
